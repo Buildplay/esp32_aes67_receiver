@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "*.tpp": "cpp",
+    "sstream": "cpp",
+    "array": "cpp",
+    "initializer_list": "cpp",
+    "string_view": "cpp",
+    "ostream": "cpp"
+  }
+}
