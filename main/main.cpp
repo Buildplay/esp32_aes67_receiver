@@ -54,19 +54,16 @@ void bufferFromArrival(void *pvParameters)
                 if (len > 0)
                 {
                     packetBuffer[len] = 0;
-                    count++;
+                    // count++;
                 }
 
-                // ExString recvStr(packetBuffer);
-                String payload(packetBuffer);
-                recv.push(payload);
-                Serial.println(String(count) + " content:");
-                Serial.println(payload);
+                ExString recvStr(packetBuffer);
+                // Serial.println(String(count) + "Contents:");
+                // Serial.println(ExString(recvStr.substring(32, 64)).binaryToInt());
+                recv.push(recvStr);
             };
+            udp.flush();
         };
-        // delayMicroseconds(250);
-        // micros();
-        // delay(10);
     };
 }
 
@@ -117,10 +114,6 @@ void connectToWiFi(const char *ssid, const char *pwd)
     WiFi.onEvent(WiFiEvent);
 
     //Initiate connection
-    // IPAddress chipIP(192,168,179,4); 
-    // IPAddress gwIP(192,168,179,1); 
-    // IPAddress snmIP(255,255,255,0); 
-    // WiFi.config(chipIP, WiFi.gatewayIP(), WiFi.subnetMask());
     WiFi.begin(ssid, pwd);
 
     Serial.print("Waiting for WIFI connection ");
@@ -169,49 +162,27 @@ void setup()
     setupAccessPoint();
     udp.begin(localUdpPort);
     
-    // Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
-    
-    // xTaskCreatePinnedToCore(
-    //     bufferFromArrival,
-    //     "loop for buffering packets",
-    //     4096,
-    //     NULL,
-    //     4,
-    //     &th[0],
-    //     0
-    // );
+    xTaskCreatePinnedToCore(
+        bufferFromArrival,
+        "loop for buffering packets",
+        4096,
+        NULL,
+        4,
+        &th[0],
+        0
+    );
 }
 
 void loop()
 {
-    // if (recv.currentBufferLength() >= 20) // NOT GOOD: when stream packet stops, fetching will stop fast.
-    // {
-    //     Serial.print("> ");
-    //     Serial.println(recv.unshift());
-    // }
-    // delayMicroseconds(250);
-    // delay(10);
-
-    if (connected)
+    if (recv.currentBufferLength() >= 20) // NOT GOOD: when stream packet stops, fetching will stop fast.
     {
-        int packetSize = udp.parsePacket();
-        // Serial.print(packetSize);
-        if (packetSize > 0)
-        {
-            // read the packet into packetBufffer
-            int len = udp.read(packetBuffer, 255);
-    
-            if (len > 0)
-            {
-                packetBuffer[len] = 0;
-                count++;
-            }
-    
-            ExString recvStr(packetBuffer);
-            Serial.println(String(count) + "Contents:");
-            Serial.println(ExString(recvStr.substring(32, 64)).binaryToInt());
-            // Serial.println(packetBuffer);
-        };
-        udp.flush();
-    };
+        // Serial.print("> ");
+        // Serial.println(recv.unshift());
+        count++;
+        Serial.printf("Content %u: ", count);
+        Serial.println(ExString(recv.unshift().substring(32, 64)).binaryToInt());
+        // recv.unshift();
+    }
+    delayMicroseconds(250);
 }
