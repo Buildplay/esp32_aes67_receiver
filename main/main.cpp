@@ -19,6 +19,32 @@ const char pass[] = "esp32pass";  // password
 const IPAddress ip(192, 168, 4, 1);       // IPアドレス(ゲートウェイも兼ねる)
 const IPAddress subnet(255, 255, 255, 0); // サブネットマスク
 
+/* --- PRINTF_BYTE_TO_BINARY macro's --- */
+#define PRINTF_BINARY_SEPARATOR
+#define PRINTF_BINARY_PATTERN_INT8 "%c%c%c%c%c%c%c%c"
+#define PRINTF_BYTE_TO_BINARY_INT8(i) \
+    (((i)&0x80ll) ? '1' : '0'),       \
+        (((i)&0x40ll) ? '1' : '0'),   \
+        (((i)&0x20ll) ? '1' : '0'),   \
+        (((i)&0x10ll) ? '1' : '0'),   \
+        (((i)&0x08ll) ? '1' : '0'),   \
+        (((i)&0x04ll) ? '1' : '0'),   \
+        (((i)&0x02ll) ? '1' : '0'),   \
+        (((i)&0x01ll) ? '1' : '0')
+
+#define PRINTF_BINARY_PATTERN_INT16 \
+    PRINTF_BINARY_PATTERN_INT8 PRINTF_BINARY_SEPARATOR PRINTF_BINARY_PATTERN_INT8
+#define PRINTF_BYTE_TO_BINARY_INT16(i) \
+    PRINTF_BYTE_TO_BINARY_INT8((i) >> 8), PRINTF_BYTE_TO_BINARY_INT8(i)
+#define PRINTF_BINARY_PATTERN_INT32 \
+    PRINTF_BINARY_PATTERN_INT16 PRINTF_BINARY_SEPARATOR PRINTF_BINARY_PATTERN_INT16
+#define PRINTF_BYTE_TO_BINARY_INT32(i) \
+    PRINTF_BYTE_TO_BINARY_INT16((i) >> 16), PRINTF_BYTE_TO_BINARY_INT16(i)
+#define PRINTF_BINARY_PATTERN_INT64 \
+    PRINTF_BINARY_PATTERN_INT32 PRINTF_BINARY_SEPARATOR PRINTF_BINARY_PATTERN_INT32
+#define PRINTF_BYTE_TO_BINARY_INT64(i) \
+    PRINTF_BYTE_TO_BINARY_INT32((i) >> 32), PRINTF_BYTE_TO_BINARY_INT32(i)
+/* --- end macros --- */
 
 //Are we currently connected?
 boolean connected = false;
@@ -29,6 +55,8 @@ unsigned int localUdpPort = 5004; // local port to listen on
 char packetBuffer[65535];         // buffer for incoming packets
 
 unsigned int count = 0;
+char timeStr[50];
+char lastStr[50];
 
 /**
  * 
@@ -49,7 +77,7 @@ void bufferFromArrival(void *pvParameters)
             if (packetSize > 0)
             {
                 // read the packet into packetBufffer
-                int len = udp.read(packetBuffer, 255);
+                int len = udp.read(packetBuffer, 65535);
 
                 if (len > 0)
                 {
@@ -57,10 +85,23 @@ void bufferFromArrival(void *pvParameters)
                     // count++;
                 }
 
-                ExString recvStr(packetBuffer);
+                // ExString recvStr(packetBuffer);
                 // Serial.println(String(count) + "Contents:");
                 // Serial.println(ExString(recvStr.substring(32, 64)).binaryToInt());
-                recv.push(recvStr);
+                // Serial.printf("Content %u: %lld :", count, esp_timer_get_time());
+                // Serial.println(recvStr);
+                // recvStr += ":";
+                memset(timeStr, 0, 50);
+                // sprintf(timeStr, "%s %lld", packetBuffer, esp_timer_get_time());
+                sprintf(timeStr, "%d %lld %lld",
+                    packetBuffer[12] * 256 + packetBuffer[13],
+                    (long long int)packetBuffer[4] * 16777216 + packetBuffer[5] * 65535 + packetBuffer[6] * 256 + packetBuffer[7],
+                    esp_timer_get_time()
+                );
+                // recvStr += timeStr;
+                // Serial.println(recvStr);
+                // Serial.println(timeStr);
+                recv.push(String(timeStr));
             };
             udp.flush();
         };
@@ -180,9 +221,24 @@ void loop()
         // Serial.print("> ");
         // Serial.println(recv.unshift());
         count++;
-        Serial.printf("Content %u: ", count);
-        Serial.println(ExString(recv.unshift().substring(32, 64)).binaryToInt());
-        // recv.unshift();
+        String str = recv.unshift();
+        // if (count % 100 == 0) {
+            // Serial.printf("Content %u: ", count);
+            // Serial.printf("Content %u: ", count);
+            // Serial.println(ExString(str.substring(32, 64)).binaryToInt());
+            // Serial.println(str.substring(289));
+            // Serial.print(str);
+            // Serial.printf(":%lld\n", esp_timer_get_time());
+
+            memset(lastStr, 0, 50);
+            // sprintf(lastStr, "Content %u: %lld", count, esp_timer_get_time());
+            // sprintf(lastStr, "Content %u: %s", count, str.c_str());
+            sprintf(lastStr, "Content %u: %s %lld", count, str.c_str(), esp_timer_get_time());
+            Serial.println(lastStr);
+            // };
+            // recv.unshift();
     }
     delayMicroseconds(250);
+
+    // delay(20);
 }
